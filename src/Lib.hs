@@ -57,6 +57,7 @@ removeClient server client = join . atomically $ do
   return $ do
     hClose $ clientHandle client
     broadcastMessage server Nothing (Exited $ clientId client)
+
 --------------------------------------------------------------------------------
 -- | Message
 --------------------------------------------------------------------------------
