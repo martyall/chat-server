@@ -24,8 +24,9 @@ main = do
       writeTVar (getClients server) (c : cs)
       writeTVar userCount (succ n)
       return c
+    announceEntrance server client
     printf "Accepted connection from %s: %s\n" host (show port)
-    forkFinally (runClient server client) (\_ -> hClose handle)
+    forkFinally (runClient server client) (\_ -> removeClient server client)
 
 port :: Int
 port = 44444
