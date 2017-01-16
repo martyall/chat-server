@@ -1,55 +1,41 @@
-module Lib where
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
-import Control.Monad
-import Control.Concurrent.STM
-import Control.Concurrent.Async
-import Data.Monoid
-import GHC.IO.Handle
-import System.IO
+module Lib (ClientId(..)
+           ,Client(..)
+           ,mkClient
+           ,runClient
+           ,Server(..)
+           ,mkServer) where
+
+import Control.Monad            (forever, join)
+import Control.Concurrent.STM   (TVar, readTVar,newTVarIO, atomically)
+import Data.Monoid              ((<>))
+import GHC.IO.Handle            (Handle)
+import System.IO                (hGetLine, hPutStrLn)
 
 --------------------------------------------------------------------------------
 -- | Client
 --------------------------------------------------------------------------------
 
-data Client = Client { clientUsername :: String
+newtype ClientId = ClientId { getClientId :: Int } deriving (Eq, Enum, Num)
+
+data Client = Client { clientId       :: ClientId
                      , clientHandle   :: Handle
-                     , messageChannel :: TChan Message
                      }
 
-mkClient :: Int -> Handle -> STM Client
-mkClient n h = do
-  chan <- newTChan
-  let username = "user" ++ show n
-  return $ Client username h chan
+mkClient :: ClientId -> Handle -> Client
+mkClient n h = Client n h
 
 runClient :: Server -> Client -> IO ()
-runClient server client = do
-    race publishToChannel publishToServer
-    return ()
-  where
-    publishToChannel :: IO ()
-    publishToChannel = forever $ do
-      msg <- hGetLine $ clientHandle client
-      atomically $ sendMessage client (ToPublish msg)
-    publishToServer :: IO ()
-    publishToServer = do
-      join $ atomically $ do
-        msg <- readTChan $ messageChannel client
-        return $ do
-          handleMessage server client msg
-          publishToServer
-
-handleMessage :: Server -> Client -> Message -> IO ()
-handleMessage server client msg = case msg of
-  ToPublish m -> let m' = clientUsername client <> ": " <> m
-                 in atomically $ broadcastMessage server (ToBroadcast m')
-  ToBroadcast m -> hPutStrLn (clientHandle client) m
+runClient server client = forever $ do
+    msg <- hGetLine $ clientHandle client
+    broadcastMessage server (Just $ clientId client) msg
 
 --------------------------------------------------------------------------------
 -- | Server
 --------------------------------------------------------------------------------
 
-data Server = Server { getClients :: TVar [Client] }
+data Server = Server { getClients  :: TVar [Client] }
 
 mkServer :: IO Server
 mkServer = do
@@ -60,18 +46,20 @@ mkServer = do
 -- | Message
 --------------------------------------------------------------------------------
 
-data Message = ToPublish String
-             | ToBroadcast String
-               deriving (Eq, Show, Read)
+type Message = String
 
-broadcastMessage :: Server -> Message -> STM ()
-broadcastMessage server msg = do
+broadcastMessage :: Server -> Maybe ClientId -> Message -> IO ()
+broadcastMessage server msenderId msg = join . atomically $ do
     clients <- readTVar $ getClients server
-    mapM_ (\client -> sendMessage client msg) clients
+    let receivers = getReceivers msenderId clients
+    return $ mapM_ (sendMessage msg) $ receivers
+  where
+    getReceivers :: Maybe ClientId -> [Client] -> [Client]
+    getReceivers msId cls = case msId of
+      Nothing -> cls
+      Just sId -> filter ((/= sId) . clientId) cls
 
-sendMessage :: Client -> Message -> STM ()
-sendMessage cl msg = writeTChan (messageChannel cl) msg
-
-
-someFunc :: IO ()
-someFunc = putStrLn "someFunc"
+sendMessage :: Message -> Client -> IO ()
+sendMessage msg cl = hPutStrLn (clientHandle cl) msg'
+  where
+    msg' = (show . getClientId . clientId $ cl) <> ": " <> msg
