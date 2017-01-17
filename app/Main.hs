@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Main
   (main) where
 
@@ -19,12 +21,12 @@ main = do
     (handle, host, port) <- accept sock
     client <- atomically $ do
       n <- readTVar userCount
-      c <- mkClient n handle
-      joinRoom server c "general"
+      c <- mkClient n "general" handle
+      addClient server c
       writeTVar userCount (succ n)
       return c
     printf "Accepted connection from %s: %s\n" host (show port)
-    forkFinally (runClient server client) (\_ -> removeClient server client)
+    forkFinally (runClient server client) (\a  -> print a >> removeClient server client)
 
 port :: Int
 port = 44444
