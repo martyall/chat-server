@@ -19,12 +19,10 @@ main = do
     (handle, host, port) <- accept sock
     client <- atomically $ do
       n <- readTVar userCount
-      let c = mkClient n handle
-      cs <- readTVar $ getClients server
-      writeTVar (getClients server) (c : cs)
+      c <- mkClient n handle
+      joinRoom server c "general"
       writeTVar userCount (succ n)
       return c
-    announceEntrance server client
     printf "Accepted connection from %s: %s\n" host (show port)
     forkFinally (runClient server client) (\_ -> removeClient server client)
 
