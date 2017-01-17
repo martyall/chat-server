@@ -156,7 +156,7 @@ handleMessage server sender msg = case msg of
     (Cmd (PM cId msg)) -> do
       receiver <- getClientById server cId
       case receiver of
-        Nothing -> sendMessage sender (Error $ "user " <> show cId <> "not found")
+        Nothing -> sendMessage sender (Error $ "user " <> (show $ getClientId cId) <> "not found")
         Just r -> sendMessage r (Message $ prep msg)
     Err err -> sendMessage sender (Error err)
   where
@@ -209,6 +209,7 @@ parseJoin = do
   eof
   return $ Join (fromString room)
 
+-- This currently is flawed-- there is no error handling and it will crash the program
 parsePM :: ReadP Command
 parsePM = do
   string "/msg"
