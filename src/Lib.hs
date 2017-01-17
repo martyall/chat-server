@@ -17,7 +17,7 @@ import           Control.Concurrent.Async     (race)
 import           Control.Concurrent.STM       (TVar, readTVar, newTVarIO, writeTVar, newTVar
                                               ,TChan, newTChan, readTChan, writeTChan
                                               ,modifyTVar, STM, atomically)
-import           Data.Char                    (isSpace)
+import           Data.Char                    (isSpace, isDigit)
 import           Data.Foldable                (find)
 import           Data.List                    (delete)
 import qualified Data.Map as M
@@ -214,6 +214,7 @@ parsePM :: ReadP Command
 parsePM = do
   string "/msg"
   skipSpaces
-  cid <- munch1 $ not . isSpace
+  cid <- munch1 $ isDigit
+  skipSpaces
   msg <- manyTill get eof
   return $ PM (ClientId $ read cid) msg
