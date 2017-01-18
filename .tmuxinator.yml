@@ -1,0 +1,22 @@
+# This file allows you to start all the services with the simple command
+# "mux start chat-server".
+
+name: chat-server
+root: .
+attach: true
+
+windows:
+  - actors:
+      layout: tiled
+      panes:
+        - chat-server:
+            - stack exec -- chat-server-exe
+        - user0:
+            - sleep 1
+            - nc localhost 44444
+        - user1:
+            - sleep 2
+            - nc localhost 44444
+        - user2:
+            - sleep 3
+            - nc localhost 44444
