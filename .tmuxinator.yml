@@ -7,7 +7,7 @@ attach: true
 
 windows:
   - actors:
-      layout: tiled
+      layout: even-horizontal
       panes:
         - chat-server:
             - stack exec -- chat-server-exe
